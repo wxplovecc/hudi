@@ -140,9 +140,10 @@ public class ITTestDataStreamWrite extends TestLogger {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"BUCKET", "FLINK_STATE"})
+  @ValueSource(strings = {"BUCKET"})
   public void testWriteMergeOnReadWithCompaction(String indexType) throws Exception {
-    Configuration conf = TestConfigurations.getDefaultConf(tempFile.getAbsolutePath());
+//    tempFile.getAbsolutePath()
+    Configuration conf = TestConfigurations.getDefaultConf("hdfs://offlinehdfs/tmp/wxp/hudi_011_bucket_mor_hudi_02");
     conf.setString(FlinkOptions.INDEX_TYPE, indexType);
     conf.setInteger(FlinkOptions.BUCKET_INDEX_NUM_BUCKETS, 4);
     conf.setString(FlinkOptions.INDEX_KEY_FIELD, "id");
@@ -238,7 +239,7 @@ public class ITTestDataStreamWrite extends TestLogger {
     if (isMor) {
       if (client.getJobStatus().get() != JobStatus.FAILED) {
         try {
-          TimeUnit.SECONDS.sleep(20); // wait long enough for the compaction to finish
+          TimeUnit.SECONDS.sleep(40); // wait long enough for the compaction to finish
           client.cancel();
         } catch (Throwable var1) {
           // ignored
@@ -249,7 +250,7 @@ public class ITTestDataStreamWrite extends TestLogger {
       client.getJobExecutionResult().get();
     }
 
-    TestData.checkWrittenFullData(tempFile, expected);
+    TestData.checkWrittenFullData(conf.getString(FlinkOptions.PATH), expected);
 
   }
 }

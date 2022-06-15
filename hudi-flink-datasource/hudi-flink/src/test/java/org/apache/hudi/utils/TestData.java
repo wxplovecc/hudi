@@ -588,6 +588,7 @@ public class TestData {
     HoodieWriteConfig config = HoodieWriteConfig.newBuilder().withPath(basePath.getAbsolutePath()).build();
     HoodieFlinkTable table = HoodieFlinkTable.create(config, HoodieFlinkEngineContext.DEFAULT, metaClient);
 
+    List<String> allReadBuffer = new ArrayList<>();
     // 2. check each partition data
     expected.forEach((partition, partitionDataSet) -> {
 
@@ -607,10 +608,56 @@ public class TestData {
               throw new RuntimeException(e);
             }
           });
+      allReadBuffer.addAll(readBuffer);
 
-      assertTrue(partitionDataSet.size() == readBuffer.size() && partitionDataSet.containsAll(readBuffer));
+//      assertTrue(partitionDataSet.size() == readBuffer.size() && partitionDataSet.containsAll(readBuffer));
 
     });
+
+    allReadBuffer.stream()
+            .sorted(Comparator.comparingInt(o -> Integer.parseInt(o.split(",")[0].replace("id", ""))))
+            .forEach(System.out::println);
+
+  }
+
+  public static void checkWrittenFullData(
+          String basePath,
+          Map<String, List<String>> expected) throws IOException {
+
+    // 1. init flink table
+    HoodieTableMetaClient metaClient = HoodieTestUtils.init(basePath);
+    HoodieWriteConfig config = HoodieWriteConfig.newBuilder().withPath(basePath).build();
+    HoodieFlinkTable table = HoodieFlinkTable.create(config, HoodieFlinkEngineContext.DEFAULT, metaClient);
+
+    List<String> allReadBuffer = new ArrayList<>();
+    // 2. check each partition data
+    expected.forEach((partition, partitionDataSet) -> {
+
+      List<String> readBuffer = new ArrayList<>();
+
+      table.getBaseFileOnlyView().getLatestBaseFiles(partition)
+              .forEach(baseFile -> {
+                String path = baseFile.getPath();
+                try {
+                  ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(new Path(path)).build();
+                  GenericRecord nextRecord = reader.read();
+                  while (nextRecord != null) {
+                    readBuffer.add(filterOutVariables(nextRecord));
+                    nextRecord = reader.read();
+                  }
+                } catch (IOException e) {
+                  throw new RuntimeException(e);
+                }
+              });
+      allReadBuffer.addAll(readBuffer);
+
+//      assertTrue(partitionDataSet.size() == readBuffer.size() && partitionDataSet.containsAll(readBuffer));
+
+    });
+
+    allReadBuffer.stream()
+            .sorted(Comparator.comparingInt(o -> Integer.parseInt(o.split(",")[0].replace("id", ""))))
+            .forEach(System.out::println);
 
   }
 

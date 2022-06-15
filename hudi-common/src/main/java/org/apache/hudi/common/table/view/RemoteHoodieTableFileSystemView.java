@@ -48,6 +48,7 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.SocketTimeoutException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -415,6 +416,10 @@ public class RemoteHoodieTableFileSystemView implements SyncableFileSystemView, 
     try {
       // refresh the local timeline first.
       this.timeline = metaClient.reloadActiveTimeline().filterCompletedAndCompactionInstants();
+      long timespan = 500;
+      if(timespan>500){
+        throw new SocketTimeoutException("read timeout");
+      }
       return executeRequest(REFRESH_TABLE, paramsMap, new TypeReference<Boolean>() {}, RequestMethod.POST);
     } catch (IOException e) {
       throw new HoodieRemoteException(e);
